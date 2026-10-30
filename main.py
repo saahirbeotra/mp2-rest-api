@@ -4,11 +4,20 @@ import json
 import logging
 from pathlib import Path
 
+from data_pipeline.data_validator import validate_dataframe
+from data_pipeline.data_processor import process_data, create_cleaning_report
+
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 
-from src import DatasetInfo, DatasetStorage, HealthResponse, setup_logging
-
+from src import (
+    DatasetInfo,
+    DatasetStorage,
+    HealthResponse,
+    ProcessConfig,
+    ProcessingReport,
+    setup_logging,
+)
 
 setup_logging(verbose=True)
 logger = logging.getLogger(__name__)
@@ -92,3 +101,61 @@ def get_dataset(
         "data": records,
         "total_rows": len(df)
     }
+
+
+
+@app.post("/datasets/{dataset_id}/process", response_model=ProcessingReport)
+def process_dataset(dataset_id: int, config: ProcessConfig):
+    """Validate and clean a stored dataset."""
+
+    df = storage.get(dataset_id)
+
+    if df is None:
+        logger.warning("Dataset not found: %s", dataset_id)
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found"
+        )
+
+    settings = config.model_dump()
+
+    try:
+        validated_df = validate_dataframe(
+            df,
+            required_columns=settings["validation"]["required_columns"],
+            numeric_columns=settings["validation"]["numeric_columns"]
+        )
+
+        validation_rows_removed = len(df) - len(validated_df)
+
+        processed_df = process_data(
+            validated_df.copy(),
+            settings
+        )
+
+        cleaning_report = create_cleaning_report(
+            validated_df,
+            processed_df
+        )
+
+    except ValueError as error:
+        logger.warning("Processing failed: %s", error)
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        ) from error
+
+    storage.update(dataset_id, processed_df)
+
+    logger.info(
+        "Processed dataset: id=%s, rows_before=%s, rows_after=%s",
+        dataset_id,
+        len(df),
+        len(processed_df)
+    )
+
+    return ProcessingReport(
+        id=dataset_id,
+        validation_rows_removed=validation_rows_removed,
+        cleaning_report=cleaning_report
+    )
