@@ -6,9 +6,9 @@ For MP2, I built a REST API using FastAPI that lets users upload CSV files, proc
 
 First Start the API:
 
-```bash
+
 python -m uvicorn main:app
-```
+
 
 Then go to http://127.0.0.1:8000/docs to test the endpoints
 
@@ -16,8 +16,8 @@ Then go to http://127.0.0.1:8000/docs to test the endpoints
 
 Run:
 
-```bash
+
 python -m pytest tests -v
-```
+
 
 All three required tests passed
