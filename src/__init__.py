@@ -6,3 +6,5 @@ from .models import (
 )
 from .storage import DatasetStorage
 from .utils import setup_logging
+
+from .middleware import log_requests

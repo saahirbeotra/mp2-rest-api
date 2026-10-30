@@ -10,6 +10,7 @@ from data_pipeline.data_processor import process_data, create_cleaning_report
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 
+
 from src import (
     DatasetInfo,
     DatasetStorage,
@@ -17,12 +18,16 @@ from src import (
     ProcessConfig,
     ProcessingReport,
     setup_logging,
+    log_requests,
 )
 
 setup_logging(verbose=True)
 logger = logging.getLogger(__name__)
 
+
 app = FastAPI(title="Data Processing API", version="1.0.0")
+app.middleware("http")(log_requests)
+
 storage = DatasetStorage()
 
 
@@ -159,3 +164,4 @@ def process_dataset(dataset_id: int, config: ProcessConfig):
         validation_rows_removed=validation_rows_removed,
         cleaning_report=cleaning_report
     )
+
